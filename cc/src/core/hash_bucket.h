@@ -66,8 +66,8 @@ struct HashBucketEntry {
 
   union {
       struct {
-        uint64_t address_ : 48; // corresponds to logical address
-        uint64_t tag_ : 14;
+        uint64_t address_ : 48; // corresponds to logical address(value)
+        uint64_t tag_ : 14; // last tag_ bit of hash value, to distingish a key from the same bucket
         uint64_t reserved_ : 1;
         uint64_t tentative_ : 1;
       };
@@ -187,7 +187,7 @@ class AtomicHashBucketOverflowEntry {
 /// A bucket consisting of 7 hash bucket entries, plus one hash bucket overflow entry. Fits in
 /// a cache line.
 struct alignas(Constants::kCacheLineBytes) HashBucket {
-  /// Number of entries per bucket (excluding overflow entry).
+  /// Max Number of entries per bucket (excluding overflow entry).
   static constexpr uint32_t kNumEntries = 7;
   /// The entries.
   AtomicHashBucketEntry entries[kNumEntries];

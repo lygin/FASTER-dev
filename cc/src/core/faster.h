@@ -290,6 +290,14 @@ class FasterKv {
  public:
   disk_t disk;
   hlog_t hlog;
+  uint64_t HashtableMemoryBytes() {
+    uint64_t total=0;
+    total += sizeof(InternalHashTable<disk_t>)*2;
+    total += state_[0].MemoryOccupiedBytes() + state_[1].MemoryOccupiedBytes();
+    total += overflow_buckets_allocator_[0].MemoryOccupiedBytes() + 
+      overflow_buckets_allocator_[1].MemoryOccupiedBytes(); 
+    return total;
+  }
 
  private:
   static constexpr bool kCopyReadsToTail = false;
@@ -466,6 +474,7 @@ inline AtomicHashBucketEntry* FasterKv<K, V, D>::FindTentativeEntry(KeyHash hash
         return atomic_entry;
       }
       // We didn't find any free slots, so allocate new bucket.
+      // the new bucket alloced beyond the existing hash table
       FixedPageAddress new_bucket_addr = overflow_buckets_allocator_[version].Allocate();
       bool success;
       do {

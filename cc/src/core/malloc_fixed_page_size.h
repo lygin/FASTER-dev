@@ -186,6 +186,7 @@ class FixedPageArray {
         if(page) {
           page->~FixedPage();
           aligned_free(page);
+          arr->memoryPages_--;
         }
       }
     }
@@ -215,6 +216,8 @@ class FixedPageArray {
     page_t* new_page = new(buffer) page_t{};
     page_t* expected = nullptr;
     if(pages()[page_idx].compare_exchange_strong(expected, new_page, std::memory_order_release)) {
+      printf("alloc new page: %ld page size: %lu\n", page_idx, sizeof(page_t));
+      memoryPages_++;
       return new_page;
     } else {
       new_page->~page_t();
@@ -222,7 +225,7 @@ class FixedPageArray {
       return expected;
     }
   }
-
+  std::atomic<uint64_t> memoryPages_{0};
  private:
   /// Accessors, since zero-length arrays at the ends of structs aren't standard in C++.
   const std::atomic<page_t*>* pages() const {
@@ -231,6 +234,7 @@ class FixedPageArray {
   std::atomic<page_t*>* pages() {
     return reinterpret_cast<std::atomic<page_t*>*>(this + 1);
   }
+  
 
  public:
   /// Alignment at which each page is allocated.
@@ -238,6 +242,9 @@ class FixedPageArray {
   /// Maximum number of pages in the array; fixed at time of construction.
   const uint64_t size;
   /// Followed by [size] std::atomic<> pointers to (page_t) pages. (Not shown here.)
+  uint64_t MemoryOccupiedBytes(){
+    return sizeof(array_t) + size * sizeof(std::atomic<page_t*>) + memoryPages_*sizeof(page_t);
+  }
 };
 
 class alignas(Constants::kCacheLineBytes) FreeList {
@@ -362,7 +369,14 @@ class MallocFixedPageSize {
   };
 
   array_t* ExpandArray(array_t* expected, uint64_t new_size);
-
+ public:
+  uint64_t MemoryOccupiedBytes() {
+    uint64_t total = 0;
+    if(page_array_ != nullptr) {
+      total += page_array_.load()->MemoryOccupiedBytes();
+    }
+    return sizeof(MallocFixedPageSize)+total;
+  }
  private:
   /// Alignment at which each page is allocated.
   uint64_t alignment_;

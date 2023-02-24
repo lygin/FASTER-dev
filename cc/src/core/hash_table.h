@@ -40,9 +40,11 @@ class InternalHashTable {
 
   inline void Initialize(uint64_t new_size, uint64_t alignment) {
     assert(new_size < INT32_MAX);
+    // size must be power of two
     assert(Utility::IsPowerOfTwo(new_size));
     assert(Utility::IsPowerOfTwo(alignment));
     assert(alignment >= Constants::kCacheLineBytes);
+    printf("Initialize table buckets: %lu, alignment: %lu\n", new_size, alignment);
     if(size_ != new_size) {
       size_ = new_size;
       if(buckets_) {
@@ -96,6 +98,9 @@ class InternalHashTable {
   inline uint64_t size() const {
     return size_;
   }
+  inline uint64_t MemoryOccupiedBytes() const {
+    return size_ * sizeof(HashBucket);
+  }
 
   // Checkpointing and recovery.
   Status Checkpoint(disk_t& disk, file_t&& file, uint64_t& checkpoint_size);
@@ -127,7 +132,7 @@ class InternalHashTable {
 
  private:
   uint64_t size_;
-  HashBucket* buckets_;
+  HashBucket* buckets_; //bucket array
 
   /// State for ongoing checkpoint/recovery.
   disk_t* disk_;
